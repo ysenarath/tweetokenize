@@ -3,3 +3,6 @@
 .gitignore
 build
 bench
+.idea/
+*.bak
+*.egg-info/

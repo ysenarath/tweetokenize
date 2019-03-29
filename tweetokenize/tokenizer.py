@@ -7,17 +7,17 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 import re
 from os import path
-from itertools import imap
-from htmlentitydefs import name2codepoint
 
-html_entities = {k: unichr(v) for k, v in name2codepoint.iteritems()}
+from html.entities import name2codepoint
+
+html_entities = {k: chr(v) for k, v in name2codepoint.items()}
 html_entities_re = re.compile(r"&#?\w+;")
-emoji_ranges = ((u'\U0001f300', u'\U0001f5ff'), (u'\U0001f600', u'\U0001f64f'), (u'\U0001f680', u'\U0001f6c5'),
-                (u'\u2600', u'\u26ff'), (u'\U0001f170', u'\U0001f19a'))
-emoji_flags =  {u'\U0001f1ef\U0001f1f5', u'\U0001f1f0\U0001f1f7', u'\U0001f1e9\U0001f1ea',
-                u'\U0001f1e8\U0001f1f3', u'\U0001f1fa\U0001f1f8', u'\U0001f1eb\U0001f1f7',
-                u'\U0001f1ea\U0001f1f8', u'\U0001f1ee\U0001f1f9', u'\U0001f1f7\U0001f1fa',
-                u'\U0001f1ec\U0001f1e7'}
+emoji_ranges = (('\U0001f300', '\U0001f5ff'), ('\U0001f600', '\U0001f64f'), ('\U0001f680', '\U0001f6c5'),
+                ('\u2600', '\u26ff'), ('\U0001f170', '\U0001f19a'))
+emoji_flags =  {'\U0001f1ef\U0001f1f5', '\U0001f1f0\U0001f1f7', '\U0001f1e9\U0001f1ea',
+                '\U0001f1e8\U0001f1f3', '\U0001f1fa\U0001f1f8', '\U0001f1eb\U0001f1f7',
+                '\U0001f1ea\U0001f1f8', '\U0001f1ee\U0001f1f9', '\U0001f1f7\U0001f1fa',
+                '\U0001f1ec\U0001f1e7'}
 
 
 def _converthtmlentities(msg):
@@ -25,7 +25,7 @@ def _converthtmlentities(msg):
         s = s.group(0)[1:-1] # remove & and ;
         if s[0] == '#':
             try:
-                return unichr(int(s[2:],16) if s[1] in 'xX' else int(s[1:]))
+                return chr(int(s[2:],16) if s[1] in 'xX' else int(s[1:]))
             except ValueError:
                 return '&#' + s + ';'
         else:
@@ -37,13 +37,13 @@ def _converthtmlentities(msg):
 
 
 def _unicode(word):
-    if isinstance(word, unicode):
+    if isinstance(word, str):
         return word
-    return unicode(word, encoding='utf-8')
+    return str(word, encoding='utf-8')
 
 
 def _isemoji(s):
-    return len(s) == len(u'\U0001f4a9') and any(l <= s <= u for l, u in emoji_ranges) or s in emoji_flags
+    return len(s) == len('\U0001f4a9') and any(l <= s <= u for l, u in emoji_ranges) or s in emoji_flags
 
 
 class Tokenizer(object):
@@ -83,15 +83,12 @@ class Tokenizer(object):
     del number_re
     other_re = r"(?:[^#\s\.]|\.(?!\.))+"
     _token_regexs = ('usernames', 'urls', 'hashtags', 'times', 'phonenumbers', 'numbers')
-    tokenize_re = re.compile(
-        ur"|".join(
-            imap(lambda x: getattr(x, 'pattern', x),
-                 [locals()[regex + '_re'] for regex in _token_regexs] + [word_re, ellipsis_re, other_re])))
-    del regex  # otherwise stays in class namespace
+    tokenize_re = re.compile(r"|".join(map(lambda x: getattr(x, 'pattern', x), [usernames_re, urls_re, hashtags_re, times_re, phonenumbers_re, numbers_re, word_re, ellipsis_re, other_re])))
+    # del regex  # otherwise stays in class namespace
     repeating_re = re.compile(r"([a-zA-Z])\1\1+")
-    doublequotes = ((u'“',u'”'),(u'"',u'"'),(u'‘',u'’'),(u'＂',u'＂'))
-    punctuation = (u'!$%()*+,-/:;<=>?[\\]^_.`{|}~\'' + u''.join(c for t in doublequotes for c in t))
-    quotes_re = re.compile(ur"|".join(ur'({}.*?{})'.format(f,s) for f,s in doublequotes) + ur'|\s(\'.*?\')\s')
+    doublequotes = (('“','”'),('"','"'),('‘','’'),('＂','＂'))
+    punctuation = ('!$%()*+,-/:;<=>?[\\]^_.`{|}~\'' + ''.join(c for t in doublequotes for c in t))
+    quotes_re = re.compile(r"|".join(r'({}.*?{})'.format(f,s) for f,s in doublequotes) + r'|\s(\'.*?\')\s')
     del doublequotes
 
     def __init__(self, **kwargs):
@@ -207,7 +204,7 @@ class Tokenizer(object):
                     break
             else: # we didn't find a match for any token so far...
                 if self.ellipsis_re.match(word):
-                    tokens.append(u"...")
+                    tokens.append("...")
                 else: # split into tokens based on emoticons or punctuation
                     tokens.extend(self._separate_emoticons_punctuation(word))
         return tokens
@@ -256,7 +253,7 @@ class Tokenizer(object):
         @type message: C{str}
         @param message: The string representation of the message.
         """
-        if not isinstance(message, basestring):
+        if not isinstance(message, str):
             raise TypeError('cannot tokenize non-string, {}'.format(repr(type(message).__name__)))
         message = _converthtmlentities(_unicode(message))
         if self.ignorequotes:
@@ -279,7 +276,7 @@ class Tokenizer(object):
         """
         self._emoticons = self._collectset(iterable, filename)
         self._maxlenemo = max(len(max(self._emoticons, key=lambda x: len(x))),
-        len(u'\U0001f1e8\U0001f1f3'), len(u'\U0001f48b'))
+        len('\U0001f1e8\U0001f1f3'), len('\U0001f48b'))
 
     def stopwords(self, iterable=None, filename=None):
         """
@@ -301,4 +298,4 @@ class Tokenizer(object):
             with open(filename, "r") as f:
                 iterable = set(l.rstrip() for l in f)
                 iterable.discard('')
-        return set(imap(_unicode, iterable))
+        return set(map(_unicode, iterable))
